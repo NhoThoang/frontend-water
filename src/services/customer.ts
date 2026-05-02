@@ -34,4 +34,9 @@ export const customerService = {
     });
     return response.data;
   },
+
+  delete: async (id: number) => {
+    const response = await api.delete(`/customers/${id}`);
+    return response.data;
+  },
 };

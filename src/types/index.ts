@@ -106,3 +106,14 @@ export interface DashboardSummary {
   }[];
   consumption_history: ConsumptionStat[];
 }
+
+export interface Payment {
+  id: number;
+  bill_id: number;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  transaction_id: string | null;
+  status: string;
+  bill?: Bill;
+}

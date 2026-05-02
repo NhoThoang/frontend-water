@@ -12,30 +12,34 @@ export const showToast = (icon: 'success' | 'error' | 'warning' | 'info', title:
       toast.onmouseleave = Swal.resumeTimer;
     }
   });
+
   Toast.fire({
     icon,
     title,
-    background: 'var(--background)',
-    color: 'var(--foreground)',
+    background: 'transparent',
     customClass: {
       popup: 'swal-toast-popup',
+      title: 'swal-toast-title',
     }
   });
 };
 
-export const showAlert = (icon: 'success' | 'error' | 'warning' | 'info', title: string, text?: string) => {
+export const showAlert = (icon: 'success' | 'error' | 'warning' | 'info', title: string, text?: string, showCancelButton: boolean = false) => {
   return Swal.fire({
     icon,
     title,
     text,
-    background: 'var(--background)',
-    color: 'var(--foreground)',
-    confirmButtonColor: 'var(--primary)',
+    showCancelButton,
+    confirmButtonText: 'Xác nhận',
+    cancelButtonText: 'Hủy bỏ',
+    background: 'transparent',
     customClass: {
       popup: 'swal-modal-popup',
       confirmButton: 'swal-confirm-button',
+      cancelButton: 'swal-cancel-button',
       title: 'swal-title',
-      htmlContainer: 'swal-text'
+      htmlContainer: 'swal-text',
+      actions: 'swal-actions'
     },
     buttonsStyling: false,
   });

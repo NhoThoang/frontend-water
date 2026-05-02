@@ -13,6 +13,7 @@ import {
 
 import { useEffect, useState } from "react";
 import { reportService } from "@/services/report";
+import { useAuthStore } from "@/store/authStore";
 import { DashboardSummary } from "@/types";
 import { cn } from "@/lib/utils";
 import Dropdown from "@/components/shared/Dropdown";
@@ -27,10 +28,13 @@ import {
 } from 'recharts';
 
 export default function DashboardPage() {
+  const { user } = useAuthStore();
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const fetchDashboard = async () => {
       try {
         const summary = await reportService.getDashboardSummary();
@@ -66,8 +70,12 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold">Chào buổi sáng!</h2>
-        <p className="text-muted-foreground mt-1">Dưới đây là tóm tắt tình hình hệ thống hôm nay.</p>
+        <h2 className="text-3xl font-bold">Chào buổi sáng, {user?.username}!</h2>
+        <p className="text-muted-foreground mt-1">
+          {user?.role === "user" 
+            ? "Dưới đây là tóm tắt tài khoản nước của bạn." 
+            : "Dưới đây là tóm tắt tình hình hệ thống hôm nay."}
+        </p>
       </div>
 
       {/* Stats Grid */}
@@ -122,55 +130,57 @@ export default function DashboardPage() {
                />
              </div>
           </div>
-          <div className="flex-1 min-h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data?.consumption_history || []}>
-                <defs>
-                  <linearGradient id="colorCons" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                <XAxis 
-                  dataKey="month" 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  tickFormatter={(value) => `${value}m³`}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    borderRadius: '12px', 
-                    border: '1px solid hsl(var(--border))',
-                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
-                  }}
-                  itemStyle={{ color: 'hsl(var(--primary))' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="consumption" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={3}
-                  fillOpacity={1} 
-                  fill="url(#colorCons)" 
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="h-[350px] w-full relative min-w-0">
+            {isClient && (
+              <ResponsiveContainer width="100%" height="100%" key="revenue-chart">
+                <AreaChart data={data?.consumption_history || []}>
+                  <defs>
+                    <linearGradient id="colorCons" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                  <XAxis 
+                    dataKey="month" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    tickFormatter={(value) => `${value}m³`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      borderRadius: '12px', 
+                      border: '1px solid hsl(var(--border))',
+                      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+                    }}
+                    itemStyle={{ color: 'hsl(var(--primary))' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="consumption" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorCons)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
         {/* Recent Activity */}
         <div className="p-8 glass-card rounded-2xl flex flex-col">
           <h3 className="text-xl font-bold mb-6">Hoạt động gần đây</h3>
-          <div className="space-y-6 flex-1 overflow-y-auto max-h-[300px] pr-2">
+          <div className="space-y-6 flex-1 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
             {data?.recent_activities.map((activity) => (
               <div key={activity.id} className="flex gap-4 items-start">
                 <div className={cn(
@@ -195,4 +205,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

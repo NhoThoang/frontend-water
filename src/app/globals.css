@@ -76,47 +76,78 @@
 
 /* SweetAlert2 Custom Styling */
 .swal-modal-popup {
-  border-radius: 2rem !important;
-  background: rgba(24, 24, 27, 0.95) !important;
-  backdrop-filter: blur(16px) !important;
+  border-radius: 3rem !important;
+  background: rgba(39, 39, 42, 0.8) !important;
+  backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
-  padding: 2rem !important;
+  padding: 3rem !important;
 }
 
 .swal-toast-popup {
-  border-radius: 1rem !important;
-  background: rgba(24, 24, 27, 0.9) !important;
-  backdrop-filter: blur(8px) !important;
+  border-radius: 2rem !important;
+  background: rgba(39, 39, 42, 0.8) !important;
+  backdrop-filter: blur(12px) !important;
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding: 0.75rem 1.5rem !important;
+}
+
+.swal-toast-title {
+  color: #fafafa !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
 }
 
 .swal-title {
   color: #fafafa !important;
-  font-size: 1.5rem !important;
-  font-weight: 700 !important;
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
   margin-bottom: 1rem !important;
 }
 
 .swal-text {
   color: #a1a1aa !important;
   font-size: 1rem !important;
+  line-height: 1.6 !important;
+}
+
+.swal-actions {
+  margin-top: 2.5rem !important;
+  gap: 1rem !important;
 }
 
 .swal-confirm-button {
-  background-color: #3b82f6 !important;
+  background: #3b82f6 !important;
   color: white !important;
-  border-radius: 0.75rem !important;
-  padding: 0.75rem 2rem !important;
+  border-radius: 1.25rem !important;
+  padding: 0.875rem 2.5rem !important;
   font-weight: 700 !important;
-  font-size: 0.875rem !important;
-  transition: all 0.2s !important;
+  font-size: 1rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3) !important;
-  margin-top: 1rem !important;
 }
 
 .swal-confirm-button:hover {
-  background-color: #2563eb !important;
-  transform: translateY(-1px) !important;
+  background: #2563eb !important;
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 0 20px 25px -5px rgba(59, 130, 246, 0.4) !important;
+}
+
+.swal-cancel-button {
+  background: transparent !important;
+  color: #a1a1aa !important;
+  border: 1px solid #3f3f46 !important;
+  border-radius: 1.25rem !important;
+  padding: 0.875rem 2.5rem !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.swal-cancel-button:hover {
+  background: #27272a !important;
+  color: #fafafa !important;
+  border-color: #52525b !important;
+  transform: translateY(-2px) !important;
 }
 

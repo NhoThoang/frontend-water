@@ -8,24 +8,30 @@ import {
   FileUp, 
   FileDown, 
   Search, 
-  MoreVertical, 
   UserPlus,
-  Mail,
   Phone,
   MapPin,
   Loader2,
   X,
   Save,
-  Check,
-  Pencil
+  Pencil,
+  Trash2,
+  Droplet
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/error";
 import { showToast, showAlert } from "@/lib/swal";
 import Dropdown from "@/components/shared/Dropdown";
+import { useAuthStore } from "@/store/authStore";
+import { useRouter } from "next/navigation";
 
 export default function CustomersPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === "admin";
+  const isWorker = user?.role === "worker";
+
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -80,6 +86,17 @@ export default function CustomersPage() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => customerService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
+      showToast("success", "Xóa khách hàng thành công!");
+    },
+    onError: (err: any) => {
+      showAlert("error", "Lỗi", getErrorMessage(err, "Lỗi khi xóa khách hàng"));
+    }
+  });
+
   const handleEdit = (customer: any) => {
     setFormData({
       customer_id: customer.customer_id || "",
@@ -91,14 +108,23 @@ export default function CustomersPage() {
       status: customer.status || "active",
       email: customer.email || "",
       area: customer.area || "",
-      password: "" // Reset password field on edit
+      password: "" 
     });
     setEditingId(customer.id);
     setIsAddModalOpen(true);
   };
 
+  const handleDelete = (id: number, name: string) => {
+    showAlert("warning", "Xác nhận xóa", `Bạn có chắc chắn muốn xóa khách hàng ${name}? Điều này sẽ xóa cả tài khoản đăng nhập của họ.`, true)
+      .then((result) => {
+        if (result.isConfirmed) {
+          deleteMutation.mutate(id);
+        }
+      });
+  };
+
   const uploadMutation = useMutation({
-    mutation_fn: (file: File) => customerService.uploadExcel(file),
+    mutationFn: (file: File) => customerService.uploadExcel(file),
     onSuccess: (data) => {
       showToast("success", `Đã tải lên thành công: ${data.created} tài khoản`);
       queryClient.invalidateQueries({ queryKey: ["customers"] });
@@ -145,33 +171,40 @@ export default function CustomersPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl hover:bg-accent transition-all text-sm font-semibold"
-          >
-            <FileDown className="w-4 h-4" />
-            Xuất Excel
-          </button>
-          
-          <label className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl hover:bg-accent transition-all text-sm font-semibold cursor-pointer">
-            <FileUp className="w-4 h-4" />
-            Tải lên Excel
-            <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleFileUpload} />
-          </label>
+          {isAdmin && (
+            <>
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl hover:bg-accent transition-all text-sm font-semibold"
+              >
+                <FileDown className="w-4 h-4" />
+                Xuất Excel
+              </button>
+              
+              <label className="flex items-center gap-2 px-4 py-2 border border-border rounded-xl hover:bg-accent transition-all text-sm font-semibold cursor-pointer">
+                <FileUp className="w-4 h-4" />
+                Tải lên
+                <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleFileUpload} />
+              </label>
 
-          <button 
-            onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all text-sm font-semibold shadow-lg shadow-primary/20"
-          >
-            <UserPlus className="w-4 h-4" />
-            Thêm hộ dân
-          </button>
+              <button 
+                onClick={() => {
+                  resetForm();
+                  setIsAddModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all text-sm font-semibold shadow-lg shadow-primary/20"
+              >
+                <UserPlus className="w-4 h-4" />
+                Thêm hộ dân
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Add Customer Modal */}
+      {/* Add/Edit Modal (Only Admin can Edit/Create) */}
       <AnimatePresence>
-        {isAddModalOpen && (
+        {isAddModalOpen && isAdmin && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -313,11 +346,6 @@ export default function CustomersPage() {
                     className="w-full bg-background border border-border rounded-xl py-2.5 px-4 outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     placeholder="••••••••"
                   />
-                  {!editingId && !formData.password && (
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      * Mặc định sẽ là Số điện thoại hoặc 'zxcvbnm12345' nếu để trống.
-                    </p>
-                  )}
                 </div>
 
                 <div className="pt-4 flex gap-3">
@@ -378,31 +406,29 @@ export default function CustomersPage() {
       </div>
 
       {/* Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-border">
+      <div className="glass-card rounded-[32px] overflow-hidden border border-border">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-accent/50 text-muted-foreground text-xs uppercase tracking-wider">
-                <th className="p-4 font-bold">Khách hàng</th>
-                <th className="p-4 font-bold">Liên hệ</th>
-                <th className="p-4 font-bold">Loại hộ</th>
-                <th className="p-4 font-bold">Khu vực</th>
-                <th className="p-4 font-bold">Số Serial</th>
-                <th className="p-4 font-bold">Trạng thái</th>
-                <th className="p-4 font-bold">Thao tác</th>
+                <th className="p-6 font-bold">Khách hàng</th>
+                <th className="p-6 font-bold">Liên hệ</th>
+                <th className="p-6 font-bold">Khu vực</th>
+                <th className="p-6 font-bold">Số Serial</th>
+                <th className="p-6 font-bold text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center">
+                  <td colSpan={5} className="p-12 text-center">
                     <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary mb-2" />
                     <p className="text-muted-foreground">Đang tải dữ liệu khách hàng...</p>
                   </td>
                 </tr>
               ) : filteredCustomers?.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center">
+                  <td colSpan={5} className="p-12 text-center">
                     <p className="text-muted-foreground">Không tìm thấy khách hàng nào.</p>
                   </td>
                 </tr>
@@ -415,18 +441,18 @@ export default function CustomersPage() {
                     transition={{ delay: i * 0.05 }}
                     className="hover:bg-accent/30 transition-colors group"
                   >
-                    <td className="p-4">
+                    <td className="p-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0">
                           {customer.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
                           <p className="font-bold">{customer.name}</p>
-                          <p className="text-xs text-primary font-mono">{customer.customer_id}</p>
+                          <p className="text-xs text-primary font-mono uppercase">{customer.customer_id}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="p-4">
+                    <td className="p-6">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Phone className="w-3.5 h-3.5" />
@@ -438,37 +464,45 @@ export default function CustomersPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-4">
-                      <span className={cn(
-                        "px-2 py-1 rounded-md text-[10px] font-bold uppercase",
-                        customer.customer_type === "residential" ? "bg-blue-500/10 text-blue-500" : "bg-purple-500/10 text-purple-500"
-                      )}>
-                        {customer.customer_type === "residential" ? "Sinh hoạt" : "Kinh doanh"}
-                      </span>
-                    </td>
-                    <td className="p-4 text-sm text-muted-foreground">
+                    <td className="p-6 text-sm text-muted-foreground">
                       {customer.area || "—"}
                     </td>
-                    <td className="p-4 font-mono text-xs">
+                    <td className="p-6 font-mono text-xs">
                       {customer.meter_serial || "—"}
                     </td>
-                    <td className="p-4">
-                      <span className={cn(
-                        "px-2 py-1 rounded-md text-[10px] font-bold uppercase",
-                        customer.status === "active" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
-                      )}>
-                        {customer.status === "active" ? "Đang dùng" : "Tạm dừng"}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => handleEdit(customer)}
-                          className="p-2 hover:bg-primary/10 text-primary rounded-lg transition-all hover:scale-110 active:scale-95"
-                          title="Chỉnh sửa"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
+                    <td className="p-6 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Worker and Admin can go to Record Reading */}
+                        {(isAdmin || isWorker) && (
+                          <button 
+                            onClick={() => router.push(`/readings?customerId=${customer.id}`)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all text-xs font-bold"
+                            title="Ghi chỉ số"
+                          >
+                            <Droplet className="w-4 h-4" />
+                            Ghi nước
+                          </button>
+                        )}
+                        
+                        {/* Only Admin can Edit/Delete */}
+                        {isAdmin && (
+                          <>
+                            <button 
+                              onClick={() => handleEdit(customer)}
+                              className="p-2 hover:bg-accent text-muted-foreground hover:text-foreground rounded-lg transition-all"
+                              title="Chỉnh sửa"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(customer.id, customer.name)}
+                              className="p-2 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-all"
+                              title="Xóa"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </motion.tr>
