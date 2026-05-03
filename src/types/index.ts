@@ -27,6 +27,8 @@ export interface Customer {
   longitude: number | null;
   installation_date: string | null;
   user_id: number | null;
+  last_reading: number | null;
+  last_month: string | null;
   created_at: string;
 }
 
