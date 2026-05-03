@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customerService } from "@/services/customer";
+import { readingService } from "@/services/reading";
 import { 
   Plus, 
   FileUp, 
@@ -16,10 +17,12 @@ import {
   Save,
   Pencil,
   Trash2,
-  Droplet
+  Droplet,
+  History,
+  Image as ImageIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { cn, getImageUrl } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/error";
 import { showToast, showAlert } from "@/lib/swal";
 import Dropdown from "@/components/shared/Dropdown";
@@ -47,12 +50,21 @@ export default function CustomersPage() {
     area: "",
     password: ""
   });
+  const [historyCustomerId, setHistoryCustomerId] = useState<number | null>(null);
+  const [historyCustomerName, setHistoryCustomerName] = useState("");
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
   const { data: customers, isLoading } = useQuery({
     queryKey: ["customers"],
     queryFn: () => customerService.getAll(),
+  });
+
+  const { data: history, isLoading: isLoadingHistory } = useQuery({
+    queryKey: ["readings", historyCustomerId],
+    queryFn: () => readingService.getCustomerReadings(historyCustomerId!),
+    enabled: !!historyCustomerId,
   });
 
   const resetForm = () => {
@@ -380,6 +392,132 @@ export default function CustomersPage() {
         )}
       </AnimatePresence>
 
+      {/* Reading History Modal */}
+      <AnimatePresence>
+        {historyCustomerId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-background border border-border w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-border flex justify-between items-center bg-primary/5">
+                <div>
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <History className="w-5 h-5 text-primary" />
+                    Lịch sử tiêu thụ: {historyCustomerName}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">Chi tiết các lần ghi chỉ số nước.</p>
+                </div>
+                <button 
+                  onClick={() => setHistoryCustomerId(null)}
+                  className="p-2 hover:bg-accent rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <div className="overflow-x-auto max-h-[60vh] custom-scrollbar">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+                        <th className="pb-3 font-bold">Tháng</th>
+                        <th className="pb-3 font-bold text-right">Số cũ (m³)</th>
+                        <th className="pb-3 font-bold text-right">Số mới (m³)</th>
+                        <th className="pb-3 font-bold text-right">Tiêu thụ (m³)</th>
+                        <th className="pb-3 font-bold text-center">Ảnh chụp</th>
+                        <th className="pb-3 font-bold text-right">Trạng thái</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {isLoadingHistory ? (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center">
+                            <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                          </td>
+                        </tr>
+                      ) : history?.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center text-muted-foreground italic">
+                            Chưa có dữ liệu ghi số.
+                          </td>
+                        </tr>
+                      ) : (
+                        history?.map((item) => (
+                          <tr key={item.id} className="text-sm hover:bg-accent/30 transition-colors">
+                            <td className="py-4 font-bold">{item.month}</td>
+                            <td className="py-4 text-right text-muted-foreground">{item.previous_reading}</td>
+                            <td className="py-4 text-right font-bold text-primary">{item.reading}</td>
+                            <td className="py-4 text-right">
+                              <span className="font-extrabold text-foreground">{Number(item.consumption.toFixed(2))} m³</span>
+                            </td>
+                            <td className="py-4 text-center">
+                              {item.image_url ? (
+                                <button 
+                                  onClick={() => setSelectedImage(getImageUrl(item.image_url))}
+                                  className="p-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all"
+                                  title="Xem ảnh"
+                                >
+                                  <ImageIcon className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground italic">Không có ảnh</span>
+                              )}
+                            </td>
+                            <td className="py-4 text-right">
+                              {item.is_anomaly ? (
+                                <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-md border border-amber-500/20">BẤT THƯỜNG</span>
+                              ) : (
+                                <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold rounded-md border border-emerald-500/20">BÌNH THƯỜNG</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                
+                <div className="mt-6 pt-6 border-t border-border flex justify-end">
+                  <button 
+                    onClick={() => setHistoryCustomerId(null)}
+                    className="px-6 py-2.5 bg-accent rounded-xl font-bold hover:bg-accent/70 transition-all text-sm"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Image Preview Modal */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" onClick={() => setSelectedImage(null)}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative max-w-4xl w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setSelectedImage(null)}
+              className="absolute -top-12 right-0 p-2 text-white hover:text-primary transition-colors bg-white/10 rounded-full"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img 
+              src={selectedImage} 
+              alt="Meter Reading" 
+              className="w-full h-auto rounded-3xl shadow-2xl border-4 border-white/10"
+            />
+          </motion.div>
+        </div>
+      )}
+
       {/* Filter & Search */}
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
@@ -414,6 +552,7 @@ export default function CustomersPage() {
                 <th className="p-6 font-bold">Khách hàng</th>
                 <th className="p-6 font-bold">Liên hệ</th>
                 <th className="p-6 font-bold">Khu vực</th>
+                <th className="p-6 font-bold">Chỉ số mới nhất</th>
                 <th className="p-6 font-bold">Số Serial</th>
                 <th className="p-6 font-bold text-right">Thao tác</th>
               </tr>
@@ -467,6 +606,16 @@ export default function CustomersPage() {
                     <td className="p-6 text-sm text-muted-foreground">
                       {customer.area || "—"}
                     </td>
+                    <td className="p-6">
+                      {customer.last_reading !== null ? (
+                        <div className="space-y-0.5">
+                          <p className="font-bold text-primary">{customer.last_reading} m³</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Tháng {customer.last_month}</p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Chưa có dữ liệu</span>
+                      )}
+                    </td>
                     <td className="p-6 font-mono text-xs">
                       {customer.meter_serial || "—"}
                     </td>
@@ -474,14 +623,26 @@ export default function CustomersPage() {
                       <div className="flex items-center justify-end gap-2">
                         {/* Worker and Admin can go to Record Reading */}
                         {(isAdmin || isWorker) && (
-                          <button 
-                            onClick={() => router.push(`/readings?customerId=${customer.id}`)}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all text-xs font-bold"
-                            title="Ghi chỉ số"
-                          >
-                            <Droplet className="w-4 h-4" />
-                            Ghi nước
-                          </button>
+                          <>
+                            <button 
+                              onClick={() => {
+                                setHistoryCustomerId(customer.id);
+                                setHistoryCustomerName(customer.name);
+                              }}
+                              className="p-2 hover:bg-accent text-muted-foreground hover:text-primary rounded-lg transition-all"
+                              title="Xem lịch sử"
+                            >
+                              <History className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => router.push(`/readings?customerId=${customer.id}`)}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all text-xs font-bold"
+                              title="Ghi chỉ số"
+                            >
+                              <Droplet className="w-4 h-4" />
+                              Ghi nước
+                            </button>
+                          </>
                         )}
                         
                         {/* Only Admin can Edit/Delete */}

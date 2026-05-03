@@ -8,14 +8,19 @@ import {
   AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
-  DollarSign
+  DollarSign,
+  History,
+  Eye,
+  Image as ImageIcon,
+  X
 } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import { reportService } from "@/services/report";
+import { readingService } from "@/services/reading";
 import { useAuthStore } from "@/store/authStore";
-import { DashboardSummary } from "@/types";
-import { cn } from "@/lib/utils";
+import { DashboardSummary, MeterReading } from "@/types";
+import { cn, getImageUrl } from "@/lib/utils";
 import Dropdown from "@/components/shared/Dropdown";
 import { 
   AreaChart, 
@@ -30,15 +35,21 @@ import {
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const [data, setData] = useState<DashboardSummary | null>(null);
+  const [readings, setReadings] = useState<MeterReading[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
     const fetchDashboard = async () => {
       try {
-        const summary = await reportService.getDashboardSummary();
+        const [summary, myReadings] = await Promise.all([
+          reportService.getDashboardSummary(),
+          user?.role === "user" ? readingService.getMyReadings() : Promise.resolve([])
+        ]);
         setData(summary);
+        setReadings(myReadings);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
       } finally {
@@ -176,32 +187,104 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-
-        {/* Recent Activity */}
-        <div className="p-8 glass-card rounded-2xl flex flex-col">
-          <h3 className="text-xl font-bold mb-6">Hoạt động gần đây</h3>
-          <div className="space-y-6 flex-1 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
-            {data?.recent_activities.map((activity) => (
-              <div key={activity.id} className="flex gap-4 items-start">
-                <div className={cn(
-                  "w-2 h-2 mt-2 rounded-full shrink-0",
-                  activity.type === "bill" ? "bg-primary" : "bg-amber-500"
-                )} />
-                <div>
-                  <p className="text-sm font-medium">{activity.description}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase mt-1">{activity.time_ago}</p>
-                </div>
-              </div>
-            ))}
-            {data?.recent_activities.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center mt-10">Chưa có hoạt động nào.</p>
-            )}
-          </div>
-          <button className="w-full mt-6 text-sm font-semibold text-primary hover:underline">
-            Xem tất cả hoạt động
-          </button>
-        </div>
       </div>
+
+      {/* Resident Reading History Table (Only for role "user") */}
+      {user?.role === "user" && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-8 rounded-2xl"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <History className="w-6 h-6 text-primary" />
+                Lịch sử ghi chỉ số & Hình ảnh đối chiếu
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">Dữ liệu chi tiết các tháng gần nhất của bạn.</p>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+                  <th className="pb-4 font-bold">Kỳ hóa đơn</th>
+                  <th className="pb-4 font-bold text-right">Số cũ (m³)</th>
+                  <th className="pb-4 font-bold text-right">Số mới (m³)</th>
+                  <th className="pb-4 font-bold text-right">Tiêu thụ (m³)</th>
+                  <th className="pb-4 font-bold text-center">Ảnh xác thực</th>
+                  <th className="pb-4 font-bold text-right">Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {readings.map((item) => (
+                  <tr key={item.id} className="text-sm hover:bg-accent/30 transition-colors">
+                    <td className="py-5 font-bold">Tháng {item.month}</td>
+                    <td className="py-5 text-right text-muted-foreground">{item.previous_reading}</td>
+                    <td className="py-5 text-right font-bold text-primary">{item.reading}</td>
+                    <td className="py-5 text-right">
+                      <span className="font-extrabold text-foreground">{Number(item.consumption.toFixed(2))} m³</span>
+                    </td>
+                    <td className="py-5 text-center">
+                      {item.image_url ? (
+                        <button 
+                          onClick={() => setSelectedImage(getImageUrl(item.image_url))}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all text-xs font-bold"
+                        >
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          Xem ảnh
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Không có ảnh</span>
+                      )}
+                    </td>
+                    <td className="py-5 text-right">
+                      {item.is_anomaly ? (
+                        <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-md border border-amber-500/20">BẤT THƯỜNG</span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold rounded-md border border-emerald-500/20">BÌNH THƯỜNG</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {readings.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-muted-foreground italic">
+                      Bạn chưa có lịch sử ghi chỉ số nào.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Image Preview Modal */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" onClick={() => setSelectedImage(null)}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative max-w-4xl w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setSelectedImage(null)}
+              className="absolute -top-12 right-0 p-2 text-white hover:text-primary transition-colors bg-white/10 rounded-full"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img 
+              src={selectedImage} 
+              alt="Meter Reading" 
+              className="w-full h-auto rounded-3xl shadow-2xl border-4 border-white/10"
+            />
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

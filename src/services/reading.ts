@@ -5,6 +5,8 @@ export interface ReadingCreate {
   customer_id: number;
   reading: number;
   month: string;
+  image_url?: string;
+  note?: string;
 }
 
 export interface ReadingResponse {
@@ -25,6 +27,11 @@ export const readingService = {
 
   getCustomerReadings: async (customerId: number) => {
     const response = await api.get<MeterReading[]>(`/readings/customer/${customerId}`);
+    return response.data;
+  },
+  
+  getMyReadings: async () => {
+    const response = await api.get<MeterReading[]>("/readings/me");
     return response.data;
   },
 };

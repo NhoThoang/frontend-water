@@ -50,15 +50,18 @@ export default function ReadingsPage() {
 
   const submitMutation = useMutation({
     mutationFn: async (data: { customerId: number, reading: number, month: string, file?: File }) => {
+      let image_url = undefined;
       // 1. Upload image if exists
       if (data.file) {
-        await uploadService.uploadMeterImage(data.customerId, data.file);
+        const uploadRes = await uploadService.uploadMeterImage(data.customerId, data.file);
+        image_url = uploadRes.image_url;
       }
       // 2. Submit reading
       return readingService.create({
         customer_id: data.customerId,
         reading: data.reading,
         month: data.month,
+        image_url: image_url,
       });
     },
     onSuccess: () => {
@@ -88,6 +91,12 @@ export default function ReadingsPage() {
     }
   };
 
+  const { data: history, isLoading: isLoadingHistory } = useQuery({
+    queryKey: ["readings", selectedCustomerId],
+    queryFn: () => readingService.getCustomerReadings(selectedCustomerId!),
+    enabled: !!selectedCustomerId,
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomerId || !reading) return;
@@ -98,6 +107,11 @@ export default function ReadingsPage() {
       month,
       file: imageFile || undefined
     });
+  };
+
+  const getStatusBadge = (isAnomaly: boolean) => {
+    if (isAnomaly) return <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-md border border-amber-500/20">BẤT THƯỜNG</span>;
+    return <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold rounded-md border border-emerald-500/20">BÌNH THƯỜNG</span>;
   };
 
   return (
@@ -194,6 +208,60 @@ export default function ReadingsPage() {
             )}
           </button>
         </form>
+
+        {/* Lịch sử ghi số của khách hàng đã chọn */}
+        {selectedCustomerId && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-8 rounded-[32px] border-border/50"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <History className="w-5 h-5 text-primary" />
+                Lịch sử ghi số
+              </h3>
+              {isLoadingHistory && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+                    <th className="pb-3 font-bold">Tháng</th>
+                    <th className="pb-3 font-bold text-right">Số cũ</th>
+                    <th className="pb-3 font-bold text-right">Số mới</th>
+                    <th className="pb-3 font-bold text-right">Tiêu thụ</th>
+                    <th className="pb-3 font-bold text-right">Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {history?.map((item) => (
+                    <tr key={item.id} className="text-sm group hover:bg-accent/5 transition-colors">
+                      <td className="py-4 font-bold">{item.month}</td>
+                      <td className="py-4 text-right font-medium text-muted-foreground">{item.previous_reading}</td>
+                      <td className="py-4 text-right font-bold text-primary">{item.reading}</td>
+                      <td className="py-4 text-right">
+                        <span className="font-extrabold text-foreground">{item.consumption}</span>
+                        <span className="text-[10px] text-muted-foreground ml-1">m³</span>
+                      </td>
+                      <td className="py-4 text-right">
+                        {getStatusBadge(item.is_anomaly)}
+                      </td>
+                    </tr>
+                  ))}
+                  {history?.length === 0 && !isLoadingHistory && (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-muted-foreground text-xs italic">
+                        Chưa có lịch sử ghi số cho khách hàng này.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       <div className="space-y-6">
